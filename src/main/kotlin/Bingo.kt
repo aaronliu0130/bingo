@@ -3,7 +3,7 @@ import kotlin.random.Random
 /**
  * Bingo class containing constructor(s), calling and card generation functions along with a column enum and emoji mode
  *
- * Empty constructor sets num to classic American 1-75 with plain, aligned header and ∅ as the free space symbol
+ * Empty constructor sets [elements] to classic American 1-75 with plain, aligned [header] and ∅ as the [freeSpace] symbol
  * @param elements The list of elements to choose from
  * @param freeSpace The character to use for representing the centered free space
  * @param header The String to put before outputting the card's elements
@@ -28,22 +28,20 @@ class Bingo(
     }
 
     /**
-     * only for numToEmoji()
+     * only for [numToEmoji]
      */
-    internal enum class Num {
-        one, two, three, four, five, six, seven, eight, nine
-    }
+    private var num: List<String> = listOf("0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣")
 
     /**
-     * Converts numbers to their Discord shortcodes
+     * Converts numbers to their emoji equivalents
      *
-     * Only used for call() in emoji mode
-     * @return Discord shortcode for number; Empty if not a valid number
+     * Only used for [call] in emoji mode
+     * @return Emoji for each digit; empty for non-digits
      */
     private fun numToEmoji(n: String): String {
         var ans = ""
         for (i in n) {
-            if (i.isDigit()) ans += ":${Num.entries[i.digitToInt()]}:"
+            if (i.isDigit()) ans += ":${num[i.digitToInt()]}:"
             else return ""
         }
         return ans
@@ -52,38 +50,66 @@ class Bingo(
     /**
      * Assisted constructor
      *
-     * It is expected that the number of elements ≥ 25 and is divisible by 5
-     * @param nums A String containing all the elements to choose from, separated by spl
+     * It is expected that the number of elements ≥ 25 and is divisible by 5.
+     * @param nums A String containing all the elements to choose from, separated by spl.
+     * @param spl The character that the string is split by. '@' by default.
+     * @param emoji Whether to toggle emoji mode, which will give an emoji header and use no padding. False by default unless [nums] starts with ':', which is a character that signals the start of an emoji shortcode on many platforms.
      * @param freeSpace The representation of the free space in the middle. If not specified, will be first element in nums.
-     * @param spl The character that the string is split by
+     * @param header A string containing what's put before every bingo card.
      * @param lexiSort Whether to sort by lexicographical order. If set to false (default behavior), will sort by length instead.
-     * @param emoji Whether to toggle emoji mode, which will give an emoji header and use no padding
+     * @param space A verb. Whether elements are automatically spaced to give consistent column sizes when viewed with a monospace font.
      */
     constructor(
         nums: String,
         spl: Char = '@',
         emoji: Boolean = nums[0] == ':',
         freeSpace: String = nums.substringBefore(spl),
-        header: String = if (!emoji) "B I N G O"
-        else ":regional_indicator_b: :regional_indicator_i: :regional_indicator_n: :regional_indicator_g: :regional_indicator_o:",
-        lexiSort: Boolean = false
-    ) : this(freeSpace = freeSpace, header = header, emoji = emoji) {
+        header: String? = null,
+        /*
+        if (!emoji) "B I N G O"
+        else "\uD83C\uDDE7  \uD83C\uDDEE  \uD83C\uDDF3  \uD83C\uDDEC  \uD83C\uDDF4", //regional indicators for BINGO
+        */
+        lexiSort: Boolean = false,
+        space: Boolean = true
+    ) : this(freeSpace = freeSpace, emoji = emoji) {
         if (nums.count { it == spl } < 25) return // less than 25 elements
-        val rem = nums.split(spl).mapNotNull { if (it == "") null else it }.toMutableList()
-        if (rem.size < 25) return
+        val rem = nums.split(spl).mapNotNull { if (it == "") null else (if (space) it.trim() else it) }.toMutableList()
+        // if (rem.size < 25) return
         while (rem.size % 5 != 0) rem.remove(rem.random())
-        elements = rem; this.freeSpace = nums.substringBefore(spl)
+        elements = rem
         if (!emoji) {
             elements = if (lexiSort) elements.sorted() else elements.sortedBy { it.length }
-            val max = elements.last().length // max length of an element, for padding purposes
-            elements = elements.map { " ".repeat(max - it.length) + it + " " }
-            this.freeSpace = " ".repeat(max - this.freeSpace.length) + this.freeSpace + " "
-            this.header = ""
-            for (i in (0..4)) this.header += "" + Column.entries[i] + " ".repeat(max)
+
+            if (space) {
+                // max length of an element, for padding purposes
+                val max: Int = if (!lexiSort) elements.last().length else elements.maxByOrNull { it.length }!!.length
+                elements = elements.map { " ".repeat(max - it.length) + it + " " }
+                this.freeSpace = " ".repeat(max - this.freeSpace.length) + this.freeSpace + " "
+                if (header == null) {
+                    if (!emoji) {
+                        this.header = (0..4).joinToString("") { "" + Column.entries[it] + " ".repeat(max) }
+                    } else {
+                        this.header = (0..4).joinToString("") {
+                            "\uD83C" + ('\uDDE6' + Column.entries[it].toString()[0].code - 'A') + " ".repeat(max + 1)
+                        }
+                    }
+                } else {
+                    this.header = header
+                }
+            } else {
+                this.header = header ?: if (!emoji) "B I N G O"
+                else "\uD83C\uDDE7 \uD83C\uDDEE \uD83C\uDDF3 \uD83C\uDDEC \uD83C\uDDF4" //regional indicators for BINGO
+            }
+
         }
         cur = elements.associateBy({ elements.indexOf(it) }, { it }).toMutableMap()
     }
 
+    /**
+     * Generates a 5x5 American bingo card
+     *
+     * @return A 5x5 2D array of strings, each of which is the corresponding element
+     */
     fun card(): Array<Array<String>> {
         val ret = Array(5) { Array(5) { "" } }
         var index: Int
@@ -103,6 +129,11 @@ class Bingo(
         return ret
     }
 
+    /**
+     * Remove a random element from the list and returns it along with the column it is in
+     *
+     * @return The [Column] paired with the element we got
+     */
     fun call(): Pair<Column, String> {
         if (cur.isEmpty()) return Pair(Column.Empty, "")
         var index: Int

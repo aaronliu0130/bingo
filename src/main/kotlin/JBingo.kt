@@ -11,7 +11,7 @@ import javax.swing.table.DefaultTableModel
  * New things: enums, enum.values(), comparators, arrays.sort, BorderLayout, JTabbedPane, JScrollPane, JTextArea, find integer occurence in array, foreach loops are by copy, slider, changelistener, gridlayout, clipboard
  */
 internal class JBingo : JTabbedPane() {
-    private var dis = true
+    private var dis = false
 
     private val card = JTextArea()
     private val numbre =
