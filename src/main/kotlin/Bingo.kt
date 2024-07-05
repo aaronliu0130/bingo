@@ -11,8 +11,8 @@ import kotlin.random.Random
  */
 class Bingo(
     var elements: List<String> = (1..75).map { if (it < 10) " $it " else "$it " },
-    var freeSpace: String = " ∅ ",
-    var header: String = "B  I  N  G  O",
+    var freeSpace: String = "∅ ",
+    var header: String = "B   I   N   G   O",
     var emoji: Boolean = false
 ) {
     var cur: MutableMap<Int, String> =
